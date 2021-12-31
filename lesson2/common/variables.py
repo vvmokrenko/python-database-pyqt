@@ -13,9 +13,10 @@ MAX_PACKAGE_LENGTH = 1024
 # Кодировка проекта
 ENCODING = 'utf-8'
 # Текущий уровень логирования
-LOGGING_LEVEL = logging.ERROR
+LOGGING_LEVEL = logging.INFO
 # База данных для хранения данных сервера:
-SERVER_DATABASE = 'sqlite:///server_base.db3'
+# SERVER_DATABASE = 'sqlite:///server_base.db3'
+SERVER_CONFIG = 'server.ini'
 
 # Прококол JIM основные ключи:
 ACTION = 'action'
@@ -33,11 +34,21 @@ ERROR = 'error'
 MESSAGE = 'message'
 MESSAGE_TEXT = 'mess_text'
 EXIT = 'exit'
+GET_CONTACTS = 'get_contacts'
+LIST_INFO = 'data_list'
+REMOVE_CONTACT = 'remove'
+ADD_CONTACT = 'add'
+USERS_REQUEST = 'get_users'
+
 
 
 # Словари - ответы:
 # 200
 RESPONSE_200 = {RESPONSE: 200}
+# 202
+RESPONSE_202 = {RESPONSE: 202,
+                LIST_INFO:None
+                }
 # 400
 RESPONSE_400 = {
     RESPONSE: 400,
