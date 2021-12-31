@@ -6,9 +6,10 @@ from abc import ABC, abstractmethod
 from message import Message
 import logging
 import time
-from common.variables import ACTION, TIME, ACCOUNT_NAME, EXIT
+from common.variables import *
 from descrptrs import Port
 from metaclasses import ServerVerifier, TransportVerifier
+from errors import ServerError
 
 
 # class Transport(ABC):
@@ -101,3 +102,73 @@ class Transport(metaclass=TransportVerifier):
         print('message - отправить сообщение. Кому и текст будет запрошены отдельно.')
         print('help - вывести подсказки по командам')
         print('exit - выход из программы')
+
+    @staticmethod
+    # Функция запроса списка известных пользователей
+    def user_list_request(sock, username):
+        Transport.LOGGER.debug(f'Запрос списка известных пользователей {username}')
+        req = {
+            ACTION: USERS_REQUEST,
+            TIME: time.time(),
+            ACCOUNT_NAME: username
+        }
+        Transport.send(sock, req)
+        ans = Transport.get(sock)
+        if RESPONSE in ans and ans[RESPONSE] == 202:
+            return ans[LIST_INFO]
+        else:
+            raise ServerError
+
+    @staticmethod
+    # Функция запрос контакт листа
+    def contacts_list_request(sock, name):
+        Transport.LOGGER.debug(f'Запрос контакт листа для пользователя {name}')
+        req = {
+            ACTION: GET_CONTACTS,
+            TIME: time.time(),
+            USER: name
+        }
+        Transport.LOGGER.debug(f'Сформирован запрос {req}')
+        Transport.send(sock, req)
+        ans = Transport.get(sock)
+        Transport.LOGGER.debug(f'Получен ответ {ans}')
+        if RESPONSE in ans and ans[RESPONSE] == 202:
+            return ans[LIST_INFO]
+        else:
+            raise ServerError
+
+    @staticmethod
+    # Функция добавления пользователя в контакт лист
+    def add_contact(sock, username, contact):
+        Transport.LOGGER.debug(f'Создание контакта {contact}')
+        req = {
+            ACTION: ADD_CONTACT,
+            TIME: time.time(),
+            USER: username,
+            ACCOUNT_NAME: contact
+        }
+        Transport.send(sock, req)
+        ans = Transport.get(sock)
+        if RESPONSE in ans and ans[RESPONSE] == 200:
+            pass
+        else:
+            raise ServerError('Ошибка создания контакта')
+        print('Удачное создание контакта.')
+
+    @staticmethod
+    # Функция удаления пользователя из контакт листа
+    def remove_contact(sock, username, contact):
+        Transport.LOGGER.debug(f'Создание контакта {contact}')
+        req = {
+            ACTION: REMOVE_CONTACT,
+            TIME: time.time(),
+            USER: username,
+            ACCOUNT_NAME: contact
+        }
+        Transport.send(sock, req)
+        ans = Transport.get(sock)
+        if RESPONSE in ans and ans[RESPONSE] == 200:
+            pass
+        else:
+            raise ServerError('Ошибка удаления клиента')
+        print('Удачное удаление')
