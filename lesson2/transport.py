@@ -3,13 +3,13 @@
 """
 import socket
 from abc import ABC, abstractmethod
-from message import Message
+from common.message import Message
 import logging
 import time
 from common.variables import *
 from descrptrs import Port
 from metaclasses import ServerVerifier, TransportVerifier
-from errors import ServerError
+from common.errors import ServerError
 
 
 # class Transport(ABC):
@@ -42,7 +42,7 @@ class Transport(metaclass=TransportVerifier):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.ipaddress = ipaddress
         self.port = int(port)
-        self.LOGGER.info(f'Создан объект типа {type(self)}, присвоен сокет {self.socket}')
+        self.LOGGER.debug(f'Создан объект типа {type(self)}, присвоен сокет {self.socket}')
 
     # Сокет для обмена сообщениями
     @property
