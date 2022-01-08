@@ -54,7 +54,7 @@ class TransportVerifier(type):
 # Метакласс для проверки соответствия сервера:
 class ServerVerifier(TransportVerifier):
     def __init__(cls, clsname, bases, clsdict):
-        print('ServerVerifier', cls, ';', clsname, ';', bases)
+        # print('ServerVerifier', cls, ';', clsname, ';', bases)
         # clsname - экземпляр метакласса - Server
         # bases - кортеж базовых классов - ()
         # clsdict - словарь атрибутов и методов экземпляра метакласса

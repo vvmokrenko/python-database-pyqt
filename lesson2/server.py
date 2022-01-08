@@ -7,7 +7,7 @@ import select
 import logs.config_server_log
 from common.variables import *
 from transport import Transport
-from decorators import log, logc
+from common.decorators import log, logc
 from metaclasses import ServerVerifier
 from server_database import ServerStorage
 import threading
@@ -84,10 +84,14 @@ class Server(threading.Thread, Transport,  metaclass=ServerVerifier):
                 DESTINATION in message and TIME in message \
                 and SENDER in message and MESSAGE_TEXT in message \
                 and self.names[message[SENDER]] == client:
-            # messages_list.append(message)
-            self.messages.append(message)
-            self.database.process_message(
-                message[SENDER], message[DESTINATION])
+            if message[DESTINATION] in self.names:
+                self.messages.append(message)
+                self.database.process_message(message[SENDER], message[DESTINATION])
+                self.send(client, RESPONSE_200)
+            else:
+                response = RESPONSE_400
+                response[ERROR] = 'Пользователь не зарегистрирован на сервере.'
+                self.send(client, response)
             return
 
         # Если клиент выходит
@@ -198,6 +202,8 @@ class Server(threading.Thread, Transport,  metaclass=ServerVerifier):
                                 del self.names[name]
                                 break
                         self.clients.remove(client_with_message)
+                        with conflag_lock:
+                            new_connection = True
 
             # Если есть сообщения для отправки и ожидающие клиенты, отправляем им сообщение.
             for i in self.messages:
@@ -231,10 +237,26 @@ def print_help():
     print('exit - завершение работы сервера.')
     print('help - вывод справки по поддерживаемым командам')
 
+# Загрузка файла конфигурации
+def config_load():
+    config = configparser.ConfigParser()
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    config.read(f"{dir_path}/{'server+++.ini'}")
+    # Если конфиг файл загружен правильно, запускаемся, иначе конфиг по умолчанию.
+    if 'SETTINGS' in config:
+        return config
+    else:
+        config.add_section('SETTINGS')
+        config.set('SETTINGS', 'Default_port', str(DEFAULT_PORT))
+        config.set('SETTINGS', 'Listen_Address', '')
+        config.set('SETTINGS', 'Database_path', '')
+        config.set('SETTINGS', 'Database_file', 'server_database.db3')
+        return config
+
 
 def main():
     # Загрузка файла конфигурации сервера
-    config = configparser.ConfigParser()
+    config = config_load()
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     config.read(f"{dir_path}/{'server.ini'}")
