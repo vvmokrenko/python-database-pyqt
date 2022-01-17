@@ -1,7 +1,9 @@
 """Программа-клиент"""
 from socket import socket
 import sys
-from PyQt5.QtWidgets import QApplication
+import os
+from Cryptodome.PublicKey import RSA
+from PyQt5.QtWidgets import QApplication, QMessageBox
 import json
 import time
 import argparse
@@ -9,10 +11,10 @@ import threading
 import logs.config_client_log
 from common.variables import *
 from common.utils import *
-from transport import Transport
+from common.transport import Transport
 from common.decorators import logc, log
 from common.errors import IncorrectDataRecivedError, ReqFieldMissingError, ServerError
-from metaclasses import ClientVerifier
+from common.metaclasses import ClientVerifier
 import socket
 from client.database import ClientDatabase
 from client.client_transport import ClientTransport
@@ -32,12 +34,14 @@ def arg_parser():
     parser.add_argument('addr', default=DEFAULT_IP_ADDRESS, nargs='?')
     parser.add_argument('port', default=DEFAULT_PORT, type=int, nargs='?')
     parser.add_argument('-n', '--name', default=None, nargs='?')
+    parser.add_argument('-p', '--password', default='', nargs='?')
     namespace = parser.parse_args(sys.argv[1:])
     server_address = namespace.addr
     server_port = namespace.port
-    client_mode = namespace.name
+    client_name = namespace.name
+    client_passwd = namespace.password
 
-    return server_address, server_port, client_mode
+    return server_address, server_port, client_name, client_passwd
 
 
 class Client(threading.Thread, Transport, metaclass=ClientVerifier):
@@ -286,47 +290,76 @@ class Client(threading.Thread, Transport, metaclass=ClientVerifier):
 
 def main():
     # Сообщаем о запуске
-    print('Консольный месседжер. Клиентский модуль.')
+    # print('Консольный месседжер. Клиентский модуль.')
 
     # Загружаем параметы коммандной строки
-    server_address, server_port, client_name = arg_parser()
+    server_address, server_port, client_name, client_passwd = arg_parser()
+    LOGGER.debug('Args loaded')
 
     # Создаём клиентское приложение
     client_app = QApplication(sys.argv)
 
+    # Если имя пользователя не было указано в командной строке, то запросим его
+    start_dialog = UserNameDialog()
+
     # Если имя пользователя не было указано в командной строке то запросим его
-    if not client_name:
-        start_dialog = UserNameDialog()
+    if not client_name or not client_passwd:
         client_app.exec_()
         # Если пользователь ввёл имя и нажал ОК, то сохраняем ведённое и удаляем объект, инааче выходим
         if start_dialog.ok_pressed:
             client_name = start_dialog.client_name.text()
-            del start_dialog
+            client_passwd = start_dialog.client_passwd.text()
+            LOGGER.debug(f'Using USERNAME = {client_name}, PASSWD = {client_passwd}.')
         else:
             exit(0)
 
     # Записываем логи
     LOGGER.info(
-        f'Запущен клиент с парамертами: адрес сервера: {server_address} , порт: {server_port}, имя пользователя: {client_name}')
+        f'Запущен клиент с параметрами: адрес сервера: {server_address} , порт: {server_port},'
+        f' имя пользователя: {client_name}')
+
+    # Загружаем ключи с файла, если же файла нет, то генерируем новую пару.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    key_file = os.path.join(dir_path, f'{client_name}.key')
+    if not os.path.exists(key_file):
+        keys = RSA.generate(2048, os.urandom)
+        with open(key_file, 'wb') as key:
+            key.write(keys.export_key())
+    else:
+        with open(key_file, 'rb') as key:
+            keys = RSA.import_key(key.read())
+
+    # !!!keys.publickey().export_key()
+    LOGGER.debug("Keys successfully loaded.")
 
     # Создаём объект базы данных
     database = ClientDatabase(client_name)
 
     # Создаём объект - транспорт и запускаем транспортный поток
     try:
-        transport = ClientTransport(server_port, server_address, database, client_name)
+        transport = ClientTransport(
+            server_port,
+            server_address,
+            database,
+            client_name,
+            client_passwd,
+            keys)
+        LOGGER.debug("Transport ready.")
     except ServerError as error:
-        print(error.text)
+        message = QMessageBox()
+        message.critical(start_dialog, 'Ошибка сервера', error.text)
         exit(1)
     transport.setDaemon(True)
     transport.start()
 
+    # Удалим объект диалога за ненадобностью
+    del start_dialog
+
     # Создаём GUI
-    main_window = ClientMainWindow(database, transport)
+    main_window = ClientMainWindow(database, transport, keys)
     main_window.make_connection(transport)
     main_window.setWindowTitle(f'Чат Программа alpha release - {client_name}')
     client_app.exec_()
-    print('Запустили приложение')
 
     # Раз графическая оболочка закрылась, закрываем транспорт
     transport.transport_shutdown()

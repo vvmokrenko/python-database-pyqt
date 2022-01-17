@@ -7,8 +7,8 @@ from common.message import Message
 import logging
 import time
 from common.variables import *
-from descrptrs import Port
-from metaclasses import ServerVerifier, TransportVerifier
+from common.descrptrs import Port
+from common.metaclasses import ServerVerifier, TransportVerifier
 from common.errors import ServerError
 
 
