@@ -1,0 +1,2 @@
+https://pypi.org/project/message-server-by-mokrenko/0.1.3/
+https://pypi.org/project/message-client-by-mokrenko/0.1.2/
